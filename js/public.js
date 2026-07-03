@@ -53,6 +53,9 @@ async function cargarCatalogo() {
           <div class="filament-swatch" style="--swatch:${colorSwatch(item.Color)}"></div>
           <div class="filament-name">${escapeHtml(item.Color)}</div>
           <div class="filament-meta">${escapeHtml(item.Marca)} · ${escapeHtml(item.Tipo)}</div>
+          <div class="filament-stock">
+               Stock disponible: ${item.Disponible} ${item.Disponible === 1 ? 'unidad' : 'unidades'}
+          </div>
           <div class="filament-bottom">
             <span class="filament-price">${price ? '$' + Math.round(price).toLocaleString('es-AR') : '—'}</span>
             ${badge}
