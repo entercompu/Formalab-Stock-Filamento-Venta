@@ -89,3 +89,8 @@
   font-size: 14px;
   padding: 40px 0;
 }
+.filament-stock {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
