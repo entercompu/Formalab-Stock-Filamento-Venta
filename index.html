@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FormaLab 3D · Control de Filamento</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="brand-mark">FL3D</span>
+      <div class="brand-text">
+        <strong>FormaLab 3D</strong>
+        <span>Control de filamento</span>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <button class="nav-btn active" data-view="dashboard">
+        <span class="nav-icon">◈</span> Stock actual
+      </button>
+      <button class="nav-btn" data-view="ingreso">
+        <span class="nav-icon">↓</span> Nuevo ingreso
+      </button>
+      <button class="nav-btn" data-view="venta">
+        <span class="nav-icon">↑</span> Nueva venta
+      </button>
+      <button class="nav-btn" data-view="historial">
+        <span class="nav-icon">≡</span> Historial
+      </button>
+      <button class="nav-btn" data-view="precios">
+        <span class="nav-icon">$</span> Precios
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-status" id="connStatus">
+        <span class="dot"></span><span class="status-text">Conectando…</span>
+      </div>
+      <button type="button" class="change-key-btn" id="changeKeyBtn">Cambiar clave</button>
+    </div>
+  </aside>
+
+  <main class="content">
+
+    <!-- DASHBOARD -->
+    <section class="view active" id="view-dashboard">
+      <header class="view-header">
+        <h1>Stock actual</h1>
+        <p>Disponible por color, calculado en base a ingresos menos ventas.</p>
+      </header>
+      <div class="summary-cards" id="summaryCards"></div>
+      <div class="table-wrap">
+        <table class="data-table" id="stockTable">
+          <thead>
+            <tr>
+              <th>Marca</th><th>Tipo</th><th>Color</th>
+              <th class="num">Ingresado</th><th class="num">Vendido</th>
+              <th class="num">Disponible</th><th>Estado</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- NUEVO INGRESO -->
+    <section class="view" id="view-ingreso">
+      <header class="view-header">
+        <h1>Nuevo ingreso</h1>
+        <p>Registrá la entrada de filamento del proveedor, con fecha y N° de remito.</p>
+      </header>
+      <form class="card-form" id="formIngreso">
+        <div class="form-grid">
+          <label>Fecha
+            <input type="date" name="fecha" required>
+          </label>
+          <label>Proveedor
+            <input type="text" name="proveedor" placeholder="Ej: Distribuidora XYZ" required>
+          </label>
+          <label>N° de remito / factura
+            <input type="text" name="numeroRemito" placeholder="Ej: 0001-00023456">
+          </label>
+          <label>Marca
+            <input type="text" name="marca" placeholder="Ej: ELEGOO" required>
+          </label>
+          <label>Tipo de filamento
+            <input type="text" name="tipo2" placeholder="Ej: PLA" required>
+          </label>
+          <label>Color
+            <input type="text" name="color" placeholder="Ej: BLANCO" required>
+          </label>
+          <label>Cantidad (unidades)
+            <input type="number" name="cantidad" min="1" step="1" required>
+          </label>
+          <label>Precio unitario (costo)
+            <input type="number" name="precioUnitario" min="0" step="1">
+          </label>
+        </div>
+        <label class="full">Notas
+          <textarea name="notas" rows="2" placeholder="Opcional"></textarea>
+        </label>
+        <button type="submit" class="btn-primary">Registrar ingreso</button>
+        <p class="form-feedback" id="feedbackIngreso"></p>
+      </form>
+    </section>
+
+    <!-- NUEVA VENTA -->
+    <section class="view" id="view-venta">
+      <header class="view-header">
+        <h1>Nueva venta</h1>
+        <p>Registrá una venta antes de entregarla, para que el stock quede al día.</p>
+      </header>
+      <form class="card-form" id="formVenta">
+        <div class="form-grid">
+          <label>Fecha
+            <input type="date" name="fecha" required>
+          </label>
+          <label>Marca
+            <input type="text" name="marca" placeholder="Ej: ELEGOO" required>
+          </label>
+          <label>Tipo de filamento
+            <input type="text" name="tipo2" placeholder="Ej: PLA" required>
+          </label>
+          <label>Color
+            <input type="text" name="color" placeholder="Ej: BLANCO" required>
+          </label>
+          <label>Cantidad vendida
+            <input type="number" name="cantidad" min="1" step="1" required>
+          </label>
+          <label>Precio de venta (unitario)
+            <input type="number" name="precioUnitario" min="0" step="1" value="24000" required>
+          </label>
+          <label>Cliente
+            <input type="text" name="cliente" placeholder="Opcional">
+          </label>
+        </div>
+        <label class="full">Notas
+          <textarea name="notas" rows="2" placeholder="Opcional"></textarea>
+        </label>
+        <button type="submit" class="btn-primary">Registrar venta</button>
+        <p class="form-feedback" id="feedbackVenta"></p>
+      </form>
+    </section>
+
+    <!-- HISTORIAL -->
+    <section class="view" id="view-historial">
+      <header class="view-header">
+        <h1>Historial</h1>
+        <p>Todos los ingresos y ventas registrados.</p>
+      </header>
+
+      <div class="subtabs">
+        <button class="subtab-btn active" data-sub="ingresos">Ingresos</button>
+        <button class="subtab-btn" data-sub="ventas">Ventas</button>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table" id="ingresosTable">
+          <thead>
+            <tr>
+              <th>Fecha</th><th>Proveedor</th><th>Remito</th><th>Marca</th>
+              <th>Tipo</th><th>Color</th><th class="num">Cant.</th>
+              <th class="num">Precio</th><th class="num">Total</th><th>Notas</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <table class="data-table hidden" id="ventasTable">
+          <thead>
+            <tr>
+              <th>Fecha</th><th>Marca</th><th>Tipo</th><th>Color</th>
+              <th class="num">Cant.</th><th class="num">Precio</th>
+              <th class="num">Total</th><th>Cliente</th><th>Notas</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- PRECIOS -->
+    <section class="view" id="view-precios">
+      <header class="view-header">
+        <h1>Precios de lista</h1>
+        <p>Definí el precio por color. Estos precios son los que ven tus clientes en el catálogo público.</p>
+      </header>
+
+      <form class="card-form" id="formPrecio">
+        <div class="form-grid">
+          <label>Marca
+            <input type="text" name="marca" placeholder="Ej: ELEGOO" required>
+          </label>
+          <label>Tipo de filamento
+            <input type="text" name="tipo2" placeholder="Ej: PLA" required>
+          </label>
+          <label>Color
+            <input type="text" name="color" placeholder="Ej: BLANCO" required>
+          </label>
+          <label>Precio de venta
+            <input type="number" name="precio" min="0" step="1" value="24000" required>
+          </label>
+        </div>
+        <button type="submit" class="btn-primary">Guardar precio</button>
+        <p class="form-feedback" id="feedbackPrecio"></p>
+      </form>
+
+      <div class="table-wrap" style="margin-top:20px;">
+        <table class="data-table" id="preciosTable">
+          <thead>
+            <tr><th>Marca</th><th>Tipo</th><th>Color</th><th class="num">Precio</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="public-link-box">
+        <strong>Catálogo público</strong>
+        <p>Compartí este link con tus clientes. Van a poder ver el stock y los precios, pero no van a poder modificar nada.</p>
+        <code id="publicLinkText">public.html</code>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
