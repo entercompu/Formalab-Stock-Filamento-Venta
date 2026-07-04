@@ -12,17 +12,30 @@
 <body class="public-body">
 
 <header class="public-header">
-  <div class="brand">
-    <span class="brand-mark">FL3D</span>
-    <div class="brand-text">
-      <strong>FormaLab 3D</strong>
-      <span>Catálogo de filamento disponible</span>
+  <div class="public-header-inner">
+    <div class="brand">
+      <span class="brand-mark">FL3D</span>
+      <div class="brand-text">
+        <strong>FormaLab 3D</strong>
+        <span>Catálogo de filamento disponible</span>
+      </div>
     </div>
+
+    <button type="button" class="header-cart-btn" id="openCartTop">
+      Mi pedido <span class="cart-count" id="cartCountTop">0</span>
+    </button>
   </div>
 </header>
 
 <main class="public-main">
-  <p class="public-note">Stock actualizado en tiempo real. Los precios pueden variar sin previo aviso.</p>
+  <div class="catalog-intro">
+    <div>
+      <h1>Filamentos disponibles</h1>
+      <p>Elegí los colores y cantidades. Al finalizar, enviá el pedido completo por WhatsApp.</p>
+    </div>
+  </div>
+
+  <p class="public-note">Stock actualizado en tiempo real. El pedido queda sujeto a confirmación de stock, precio y entrega.</p>
 
   <div class="public-grid" id="catalogo">
     <p class="loading">Cargando catálogo…</p>
@@ -30,8 +43,49 @@
 </main>
 
 <footer class="public-footer">
-  FormaLab 3D — para consultas o pedidos, contactanos directamente.
+  FormaLab 3D — filamentos, impresión 3D y soluciones personalizadas.
 </footer>
+
+<button type="button" class="cart-fab" id="openCart" aria-label="Abrir pedido">
+  <span>Ver pedido</span>
+  <span class="cart-fab-total" id="cartFabTotal">0 productos</span>
+</button>
+
+<div class="cart-overlay hidden" id="cartOverlay" aria-hidden="true">
+  <section class="cart-panel" role="dialog" aria-modal="true" aria-labelledby="cartTitle">
+    <div class="cart-header">
+      <div>
+        <span class="cart-eyebrow">FORMA LAB 3D</span>
+        <h2 id="cartTitle">Tu pedido</h2>
+      </div>
+      <button type="button" class="cart-close" id="closeCart" aria-label="Cerrar">×</button>
+    </div>
+
+    <div class="cart-items" id="cartItems"></div>
+
+    <div class="cart-customer-fields">
+      <label>Nombre
+        <input type="text" id="customerName" maxlength="80" placeholder="Tu nombre">
+      </label>
+      <label>Localidad o forma de entrega
+        <input type="text" id="customerLocation" maxlength="120" placeholder="Ej: Río Gallegos, retiro o envío">
+      </label>
+    </div>
+
+    <div class="cart-summary">
+      <span>Total estimado</span>
+      <strong id="cartTotal">$0</strong>
+    </div>
+    <p class="cart-disclaimer">El total es orientativo. FormaLab confirmará disponibilidad, precio final, pago y entrega por WhatsApp.</p>
+
+    <div class="cart-actions">
+      <button type="button" class="btn-cart-secondary" id="clearCart">Vaciar pedido</button>
+      <button type="button" class="btn-whatsapp" id="sendWhatsApp">Enviar por WhatsApp</button>
+    </div>
+  </section>
+</div>
+
+<div class="cart-toast" id="cartToast" role="status" aria-live="polite"></div>
 
 <script src="js/config.js"></script>
 <script src="js/public.js"></script>
