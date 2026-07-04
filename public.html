@@ -5,9 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FormaLab 3D · Catálogo de filamento</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
-<link rel="stylesheet" href="css/public.css">
+<!-- El número de versión evita que el navegador conserve el CSS anterior. -->
+<link rel="stylesheet" href="css/public.css?v=2.0">
 </head>
 <body class="public-body">
 
@@ -17,25 +18,27 @@
       <span class="brand-mark">FL3D</span>
       <div class="brand-text">
         <strong>FormaLab 3D</strong>
-        <span>Catálogo de filamento disponible</span>
+        <span>Filamentos disponibles</span>
       </div>
     </div>
 
     <button type="button" class="header-cart-btn" id="openCartTop">
-      Mi pedido <span class="cart-count" id="cartCountTop">0</span>
+      Mi pedido
+      <span class="cart-count" id="cartCountTop">0</span>
     </button>
   </div>
 </header>
 
 <main class="public-main">
-  <div class="catalog-intro">
+  <section class="catalog-intro">
     <div>
-      <h1>Filamentos disponibles</h1>
-      <p>Elegí los colores y cantidades. Al finalizar, enviá el pedido completo por WhatsApp.</p>
+      <span class="catalog-kicker">STOCK ACTUALIZADO</span>
+      <h1>Elegí tus filamentos</h1>
+      <p>Seleccioná la cantidad de cada color, agregalos al pedido y completá tus datos al finalizar.</p>
     </div>
-  </div>
+  </section>
 
-  <p class="public-note">Stock actualizado en tiempo real. El pedido queda sujeto a confirmación de stock, precio y entrega.</p>
+  <p class="public-note">Los precios y la disponibilidad quedan sujetos a confirmación antes de coordinar el pago y la entrega.</p>
 
   <div class="public-grid" id="catalogo">
     <p class="loading">Cargando catálogo…</p>
@@ -47,40 +50,94 @@
 </footer>
 
 <button type="button" class="cart-fab" id="openCart" aria-label="Abrir pedido">
-  <span>Ver pedido</span>
-  <span class="cart-fab-total" id="cartFabTotal">0 productos</span>
+  <span>Ver mi pedido</span>
+  <span class="cart-fab-info" id="cartFabInfo">0 productos</span>
 </button>
 
-<div class="cart-overlay hidden" id="cartOverlay" aria-hidden="true">
+<div class="cart-overlay is-hidden" id="cartOverlay" aria-hidden="true">
   <section class="cart-panel" role="dialog" aria-modal="true" aria-labelledby="cartTitle">
     <div class="cart-header">
       <div>
         <span class="cart-eyebrow">FORMA LAB 3D</span>
-        <h2 id="cartTitle">Tu pedido</h2>
+        <h2 id="cartTitle">Finalizar pedido</h2>
       </div>
-      <button type="button" class="cart-close" id="closeCart" aria-label="Cerrar">×</button>
+      <button type="button" class="cart-close" id="closeCart" aria-label="Cerrar pedido">×</button>
     </div>
 
-    <div class="cart-items" id="cartItems"></div>
-
-    <div class="cart-customer-fields">
-      <label>Nombre
-        <input type="text" id="customerName" maxlength="80" placeholder="Tu nombre">
-      </label>
-      <label>Localidad o forma de entrega
-        <input type="text" id="customerLocation" maxlength="120" placeholder="Ej: Río Gallegos, retiro o envío">
-      </label>
+    <div class="checkout-progress" aria-label="Progreso del pedido">
+      <div class="progress-step active" id="progressStep1">
+        <span>1</span>
+        <small>Productos</small>
+      </div>
+      <div class="progress-line"></div>
+      <div class="progress-step" id="progressStep2">
+        <span>2</span>
+        <small>Tus datos</small>
+      </div>
     </div>
 
-    <div class="cart-summary">
-      <span>Total estimado</span>
-      <strong id="cartTotal">$0</strong>
-    </div>
-    <p class="cart-disclaimer">El total es orientativo. FormaLab confirmará disponibilidad, precio final, pago y entrega por WhatsApp.</p>
+    <!-- PASO 1: revisión del carrito -->
+    <div class="checkout-step" id="checkoutStep1">
+      <div class="step-heading">
+        <h3>Revisá tu pedido</h3>
+        <p>Podés modificar las cantidades antes de continuar.</p>
+      </div>
 
-    <div class="cart-actions">
-      <button type="button" class="btn-cart-secondary" id="clearCart">Vaciar pedido</button>
-      <button type="button" class="btn-whatsapp" id="sendWhatsApp">Enviar por WhatsApp</button>
+      <div class="cart-items" id="cartItems"></div>
+
+      <div class="cart-summary">
+        <span>Total estimado</span>
+        <strong id="cartTotal">$0</strong>
+      </div>
+      <p class="cart-disclaimer">El total es orientativo y se confirmará por WhatsApp.</p>
+
+      <div class="cart-actions">
+        <button type="button" class="btn-cart-secondary" id="clearCart">Vaciar pedido</button>
+        <button type="button" class="btn-primary-cart" id="continueCheckout">Continuar</button>
+      </div>
+    </div>
+
+    <!-- PASO 2: datos del cliente -->
+    <div class="checkout-step is-hidden" id="checkoutStep2">
+      <div class="step-heading">
+        <h3>Completá tus datos</h3>
+        <p>Con esta información podremos confirmar disponibilidad y coordinar la entrega.</p>
+      </div>
+
+      <div class="customer-form">
+        <label>Nombre y apellido
+          <input type="text" id="customerName" maxlength="80" placeholder="Ej: Leandro Pérez" autocomplete="name" required>
+        </label>
+
+        <label>Localidad
+          <input type="text" id="customerLocation" maxlength="80" placeholder="Ej: Río Gallegos" required>
+        </label>
+
+        <label>Forma de entrega
+          <select id="deliveryMethod" required>
+            <option value="">Seleccionar</option>
+            <option value="Retiro por el local">Retiro por el local</option>
+            <option value="Envío dentro de Río Gallegos">Envío dentro de Río Gallegos</option>
+            <option value="Envío a otra localidad">Envío a otra localidad</option>
+          </select>
+        </label>
+
+        <label>Observaciones
+          <textarea id="customerNotes" maxlength="300" rows="3" placeholder="Opcional: horario, dirección o alguna aclaración"></textarea>
+        </label>
+      </div>
+
+      <div class="final-order-summary">
+        <span>Total estimado</span>
+        <strong id="finalCartTotal">$0</strong>
+      </div>
+
+      <p class="form-error is-hidden" id="checkoutError"></p>
+
+      <div class="cart-actions">
+        <button type="button" class="btn-cart-secondary" id="backToCart">Volver</button>
+        <button type="button" class="btn-whatsapp" id="sendWhatsApp">Enviar pedido por WhatsApp</button>
+      </div>
     </div>
   </section>
 </div>
@@ -88,6 +145,7 @@
 <div class="cart-toast" id="cartToast" role="status" aria-live="polite"></div>
 
 <script src="js/config.js"></script>
-<script src="js/public.js"></script>
+<!-- El número de versión evita que el navegador conserve el JS anterior. -->
+<script src="js/public.js?v=2.0"></script>
 </body>
 </html>
