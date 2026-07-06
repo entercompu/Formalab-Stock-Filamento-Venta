@@ -64,7 +64,14 @@ body {
   padding: 6px 8px;
   border-radius: 4px;
 }
-
+.brand-logo {
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: #fff;
+  padding: 4px;
+}
 .brand-text {
   display: flex;
   flex-direction: column;
@@ -432,11 +439,4 @@ textarea { resize: vertical; }
   .nav-btn { padding: 7px 10px; font-size: 12px; }
   .brand-text strong { font-size: 12.5px; }
 }
-.brand-logo {
-  width: 42px;
-  height: 42px;
-  object-fit: contain;
-  border-radius: 8px;
-  background: #fff;
-  padding: 4px;
-}
+
