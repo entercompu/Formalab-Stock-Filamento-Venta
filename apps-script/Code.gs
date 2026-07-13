@@ -1,14 +1,14 @@
 /**
  * FormaLab 3D - Control de Filamento
- * Backend protegido para Google Apps Script.
+ * Backend en Google Apps Script.
  *
- * Después de pegar este archivo:
- * 1. Ejecutá manualmente generarClaveAdmin() una sola vez.
- * 2. Autorizá los permisos.
- * 3. Copiá la clave mostrada en el registro de ejecución.
- * 4. Implementá como Aplicación web, ejecutando como vos y con acceso "Cualquier usuario".
- *
- * El catálogo público no necesita clave. Las operaciones administrativas sí.
+ * INSTRUCCIONES DE INSTALACIÓN (ver README.md para el detalle paso a paso):
+ * 1. Crear una planilla nueva en Google Sheets.
+ * 2. Extensiones > Apps Script, borrar el contenido y pegar este archivo entero.
+ * 3. Implementar > Nueva implementación > Aplicación web.
+ *    - Ejecutar como: Yo
+ *    - Quién tiene acceso: Cualquier usuario
+ * 4. Copiar la URL que te da y pegarla en js/config.js del frontend.
  */
 
 const SHEET_INGRESOS = 'Ingresos';
@@ -19,21 +19,8 @@ const HEADERS_INGRESOS = ['Fecha', 'Proveedor', 'NumeroRemito', 'Marca', 'Tipo',
 const HEADERS_VENTAS = ['Fecha', 'Marca', 'Tipo', 'Color', 'Cantidad', 'PrecioUnitario', 'Total', 'Cliente', 'Notas', 'Timestamp'];
 const HEADERS_PRECIOS = ['Marca', 'Tipo', 'Color', 'Precio', 'Timestamp'];
 
-/**
- * Ejecutar una sola vez desde el editor de Apps Script.
- * La clave se guarda en Propiedades del script y no se publica en GitHub.
- */
-function generarClaveAdmin() {
-  const key = Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, '').slice(0, 8);
-  PropertiesService.getScriptProperties().setProperty('ADMIN_KEY', key);
-  console.log('CLAVE ADMINISTRATIVA: ' + key);
-  return key;
-}
-
 function getSheet_(name, headers) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  if (!ss) throw new Error('No se encontró la planilla vinculada al proyecto.');
-
   let sheet = ss.getSheetByName(name);
   if (!sheet) {
     sheet = ss.insertSheet(name);
@@ -47,289 +34,131 @@ function getSheet_(name, headers) {
 function sheetToObjects_(sheet) {
   const values = sheet.getDataRange().getValues();
   if (values.length < 2) return [];
-
   const headers = values[0];
-  return values.slice(1)
+  const rows = values.slice(1);
+  return rows
     .filter(row => row.some(cell => cell !== '' && cell !== null))
-    .map((row, index) => {
-      const obj = { _row: index + 2 };
-      headers.forEach((header, columnIndex) => {
-        let value = row[columnIndex];
-        if (value instanceof Date) {
-          value = Utilities.formatDate(value, Session.getScriptTimeZone(), 'yyyy-MM-dd');
-        }
-        obj[header] = value;
+    .map((row, i) => {
+      const obj = { _row: i + 2 };
+      headers.forEach((h, idx) => {
+        let v = row[idx];
+        if (v instanceof Date) v = Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+        obj[h] = v;
       });
       return obj;
     });
 }
 
 function jsonResponse_(obj) {
-  return ContentService
-    .createTextOutput(JSON.stringify(obj))
-    .setMimeType(ContentService.MimeType.JSON);
-}
-
-function cleanText_(value, maxLength) {
-  let text = String(value == null ? '' : value).trim();
-  if (maxLength && text.length > maxLength) text = text.slice(0, maxLength);
-
-  // Evita que textos ingresados se ejecuten como fórmulas dentro de Google Sheets.
-  if (/^[=+\-@]/.test(text)) text = "'" + text;
-  return text;
-}
-
-function normalizeProductText_(value) {
-  return cleanText_(value, 80).replace(/\s+/g, ' ').toUpperCase();
-}
-
-function positiveInteger_(value, fieldName) {
-  const number = Number(value);
-  if (!Number.isInteger(number) || number <= 0) {
-    throw new Error(fieldName + ' debe ser un número entero mayor que cero.');
-  }
-  return number;
-}
-
-function nonNegativeNumber_(value, fieldName) {
-  const number = Number(value);
-  if (!Number.isFinite(number) || number < 0) {
-    throw new Error(fieldName + ' debe ser un número igual o mayor que cero.');
-  }
-  return number;
-}
-
-function validDate_(value) {
-  const date = cleanText_(value, 10);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-    throw new Error('La fecha no tiene un formato válido.');
-  }
-  return date;
-}
-
-function requireText_(value, fieldName, maxLength) {
-  const text = cleanText_(value, maxLength);
-  if (!text) throw new Error('Falta completar: ' + fieldName + '.');
-  return text;
-}
-
-function getAdminKey_() {
-  return PropertiesService.getScriptProperties().getProperty('ADMIN_KEY') || '';
-}
-
-function isAuthorized_(providedKey) {
-  const storedKey = getAdminKey_();
-  return Boolean(storedKey && providedKey && String(providedKey) === storedKey);
-}
-
-function loadAllData_() {
-  const ingresos = sheetToObjects_(getSheet_(SHEET_INGRESOS, HEADERS_INGRESOS));
-  const ventas = sheetToObjects_(getSheet_(SHEET_VENTAS, HEADERS_VENTAS));
-  const precios = sheetToObjects_(getSheet_(SHEET_PRECIOS, HEADERS_PRECIOS));
-  const stock = computeStock_(ingresos, ventas, precios);
-  return { ingresos, ventas, precios, stock };
+  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
 
 function doGet(e) {
-  try {
-    const parameters = e && e.parameter ? e.parameter : {};
-    const action = String(parameters.action || 'publico').toLowerCase();
-    const data = loadAllData_();
+  const action = (e.parameter.action || 'all');
+  const ingresosSheet = getSheet_(SHEET_INGRESOS, HEADERS_INGRESOS);
+  const ventasSheet = getSheet_(SHEET_VENTAS, HEADERS_VENTAS);
+  const preciosSheet = getSheet_(SHEET_PRECIOS, HEADERS_PRECIOS);
+  const ingresos = sheetToObjects_(ingresosSheet);
+  const ventas = sheetToObjects_(ventasSheet);
+  const precios = sheetToObjects_(preciosSheet);
+  const stock = computeStock_(ingresos, ventas, precios);
 
-    if (action === 'publico') {
-      const catalogo = data.stock.map(item => ({
-        Marca: item.Marca,
-        Tipo: item.Tipo,
-        Color: item.Color,
-        Precio: item.Precio,
-        Disponible: item.Disponible
-      }));
-      return jsonResponse_({ ok: true, catalogo });
-    }
-
-    if (!isAuthorized_(parameters.adminKey)) {
-      return jsonResponse_({ ok: false, error: 'No autorizado. Revisá la clave administrativa.' });
-    }
-
-    if (action === 'stock') {
-      return jsonResponse_({ ok: true, stock: data.stock });
-    }
-
-    if (action === 'all') {
-      return jsonResponse_({
-        ok: true,
-        ingresos: data.ingresos,
-        ventas: data.ventas,
-        precios: data.precios,
-        stock: data.stock
-      });
-    }
-
-    return jsonResponse_({ ok: false, error: 'Acción no reconocida.' });
-  } catch (error) {
-    return jsonResponse_({ ok: false, error: error.message });
+  if (action === 'stock') {
+    return jsonResponse_({ ok: true, stock: stock });
   }
+
+  if (action === 'publico') {
+    // Catálogo de solo lectura: nada de proveedores, remitos ni costos.
+    const catalogo = stock.map(r => ({
+      Marca: r.Marca, Tipo: r.Tipo, Color: r.Color,
+      Precio: r.Precio, Disponible: r.Disponible
+    }));
+    return jsonResponse_({ ok: true, catalogo: catalogo });
+  }
+
+  return jsonResponse_({
+    ok: true,
+    ingresos: ingresos,
+    ventas: ventas,
+    precios: precios,
+    stock: stock
+  });
 }
 
 function computeStock_(ingresos, ventas, precios) {
   const map = {};
-  const productKey = row => [
-    normalizeProductText_(row.Marca),
-    normalizeProductText_(row.Tipo),
-    normalizeProductText_(row.Color)
-  ].join('|');
+  const key = (r) => [r.Marca, r.Tipo, r.Color].join('|');
 
-  ingresos.forEach(row => {
-    const key = productKey(row);
-    if (!map[key]) {
-      map[key] = {
-        Marca: normalizeProductText_(row.Marca),
-        Tipo: normalizeProductText_(row.Tipo),
-        Color: normalizeProductText_(row.Color),
-        Ingresado: 0,
-        Vendido: 0,
-        Precio: 0
-      };
-    }
-    map[key].Ingresado += Number(row.Cantidad) || 0;
+  ingresos.forEach(r => {
+    const k = key(r);
+    if (!map[k]) map[k] = { Marca: r.Marca, Tipo: r.Tipo, Color: r.Color, Ingresado: 0, Vendido: 0, Precio: 0 };
+    map[k].Ingresado += Number(r.Cantidad) || 0;
+  });
+  ventas.forEach(r => {
+    const k = key(r);
+    if (!map[k]) map[k] = { Marca: r.Marca, Tipo: r.Tipo, Color: r.Color, Ingresado: 0, Vendido: 0, Precio: 0 };
+    map[k].Vendido += Number(r.Cantidad) || 0;
+  });
+  (precios || []).forEach(r => {
+    const k = key(r);
+    if (!map[k]) map[k] = { Marca: r.Marca, Tipo: r.Tipo, Color: r.Color, Ingresado: 0, Vendido: 0, Precio: 0 };
+    map[k].Precio = Number(r.Precio) || 0;
   });
 
-  ventas.forEach(row => {
-    const key = productKey(row);
-    if (!map[key]) {
-      map[key] = {
-        Marca: normalizeProductText_(row.Marca),
-        Tipo: normalizeProductText_(row.Tipo),
-        Color: normalizeProductText_(row.Color),
-        Ingresado: 0,
-        Vendido: 0,
-        Precio: 0
-      };
-    }
-    map[key].Vendido += Number(row.Cantidad) || 0;
-  });
-
-  (precios || []).forEach(row => {
-    const key = productKey(row);
-    if (!map[key]) {
-      map[key] = {
-        Marca: normalizeProductText_(row.Marca),
-        Tipo: normalizeProductText_(row.Tipo),
-        Color: normalizeProductText_(row.Color),
-        Ingresado: 0,
-        Vendido: 0,
-        Precio: 0
-      };
-    }
-    map[key].Precio = Number(row.Precio) || 0;
-  });
-
-  return Object.values(map)
-    .map(item => ({ ...item, Disponible: item.Ingresado - item.Vendido }))
-    .sort((a, b) => (a.Marca + a.Tipo + a.Color).localeCompare(b.Marca + b.Tipo + b.Color, 'es'));
+  return Object.keys(map).map(k => {
+    const item = map[k];
+    item.Disponible = item.Ingresado - item.Vendido;
+    return item;
+  }).sort((a, b) => (a.Marca + a.Color).localeCompare(b.Marca + b.Color));
 }
 
 function doPost(e) {
-  const lock = LockService.getScriptLock();
-
   try {
-    const rawBody = e && e.postData ? e.postData.contents : '';
-    if (!rawBody) throw new Error('La solicitud no contiene datos.');
+    const data = JSON.parse(e.postData.contents);
 
-    const data = JSON.parse(rawBody);
-    if (!isAuthorized_(data.adminKey)) {
-      return jsonResponse_({ ok: false, error: 'No autorizado. Revisá la clave administrativa.' });
-    }
-
-    lock.waitLock(10000);
-
-    const operationType = cleanText_(data.tipo, 20).toLowerCase();
-
-    if (operationType === 'ingreso') {
-      const fecha = validDate_(data.fecha);
-      const proveedor = requireText_(data.proveedor, 'Proveedor', 120);
-      const numeroRemito = cleanText_(data.numeroRemito, 80);
-      const marca = requireText_(normalizeProductText_(data.marca), 'Marca', 80);
-      const tipo = requireText_(normalizeProductText_(data.tipo2), 'Tipo de filamento', 80);
-      const color = requireText_(normalizeProductText_(data.color), 'Color', 80);
-      const cantidad = positiveInteger_(data.cantidad, 'Cantidad');
-      const precioUnitario = nonNegativeNumber_(data.precioUnitario || 0, 'Precio unitario');
-      const notas = cleanText_(data.notas, 500);
-      const total = cantidad * precioUnitario;
-
-      getSheet_(SHEET_INGRESOS, HEADERS_INGRESOS).appendRow([
-        fecha, proveedor, numeroRemito, marca, tipo, color,
-        cantidad, precioUnitario, total, notas, new Date()
+    if (data.tipo === 'ingreso') {
+      const sheet = getSheet_(SHEET_INGRESOS, HEADERS_INGRESOS);
+      const total = (Number(data.cantidad) || 0) * (Number(data.precioUnitario) || 0);
+      sheet.appendRow([
+        data.fecha, data.proveedor, data.numeroRemito, data.marca, data.tipo2,
+        data.color, data.cantidad, data.precioUnitario, total, data.notas || '',
+        new Date()
       ]);
-
-      return jsonResponse_({ ok: true, message: 'Ingreso registrado.' });
+      return jsonResponse_({ ok: true });
     }
 
-    if (operationType === 'venta') {
-      const fecha = validDate_(data.fecha);
-      const marca = requireText_(normalizeProductText_(data.marca), 'Marca', 80);
-      const tipo = requireText_(normalizeProductText_(data.tipo2), 'Tipo de filamento', 80);
-      const color = requireText_(normalizeProductText_(data.color), 'Color', 80);
-      const cantidad = positiveInteger_(data.cantidad, 'Cantidad');
-      const precioUnitario = nonNegativeNumber_(data.precioUnitario, 'Precio de venta');
-      const cliente = cleanText_(data.cliente, 120);
-      const notas = cleanText_(data.notas, 500);
-
-      const currentData = loadAllData_();
-      const currentItem = currentData.stock.find(item =>
-        item.Marca === marca && item.Tipo === tipo && item.Color === color
-      );
-      const available = currentItem ? Number(currentItem.Disponible) || 0 : 0;
-
-      if (cantidad > available) {
-        throw new Error('Stock insuficiente. Disponible: ' + available + '.');
-      }
-
-      const total = cantidad * precioUnitario;
-      getSheet_(SHEET_VENTAS, HEADERS_VENTAS).appendRow([
-        fecha, marca, tipo, color, cantidad, precioUnitario,
-        total, cliente, notas, new Date()
+    if (data.tipo === 'venta') {
+      const sheet = getSheet_(SHEET_VENTAS, HEADERS_VENTAS);
+      const total = (Number(data.cantidad) || 0) * (Number(data.precioUnitario) || 0);
+      sheet.appendRow([
+        data.fecha, data.marca, data.tipo2, data.color, data.cantidad,
+        data.precioUnitario, total, data.cliente || '', data.notas || '',
+        new Date()
       ]);
-
-      return jsonResponse_({ ok: true, message: 'Venta registrada.' });
+      return jsonResponse_({ ok: true });
     }
 
-    if (operationType === 'precio') {
-      const marca = requireText_(normalizeProductText_(data.marca), 'Marca', 80);
-      const tipo = requireText_(normalizeProductText_(data.tipo2), 'Tipo de filamento', 80);
-      const color = requireText_(normalizeProductText_(data.color), 'Color', 80);
-      const precio = nonNegativeNumber_(data.precio, 'Precio');
+    if (data.tipo === 'precio') {
       const sheet = getSheet_(SHEET_PRECIOS, HEADERS_PRECIOS);
       const values = sheet.getDataRange().getValues();
       let foundRow = -1;
-
-      for (let index = 1; index < values.length; index++) {
-        const rowMarca = normalizeProductText_(values[index][0]);
-        const rowTipo = normalizeProductText_(values[index][1]);
-        const rowColor = normalizeProductText_(values[index][2]);
-        if (rowMarca === marca && rowTipo === tipo && rowColor === color) {
-          foundRow = index + 1;
+      for (let i = 1; i < values.length; i++) {
+        if (values[i][0] === data.marca && values[i][1] === data.tipo2 && values[i][2] === data.color) {
+          foundRow = i + 1;
           break;
         }
       }
-
       if (foundRow > -1) {
-        sheet.getRange(foundRow, 1, 1, 5).setValues([[marca, tipo, color, precio, new Date()]]);
+        sheet.getRange(foundRow, 4).setValue(Number(data.precio) || 0);
+        sheet.getRange(foundRow, 5).setValue(new Date());
       } else {
-        sheet.appendRow([marca, tipo, color, precio, new Date()]);
+        sheet.appendRow([data.marca, data.tipo2, data.color, Number(data.precio) || 0, new Date()]);
       }
-
-      return jsonResponse_({ ok: true, message: 'Precio guardado.' });
+      return jsonResponse_({ ok: true });
     }
 
-    return jsonResponse_({ ok: false, error: 'Tipo de operación no reconocido.' });
-  } catch (error) {
-    return jsonResponse_({ ok: false, error: error.message });
-  } finally {
-    try {
-      lock.releaseLock();
-    } catch (_) {
-      // El bloqueo puede no haberse adquirido si la validación falló antes.
-    }
+    return jsonResponse_({ ok: false, error: 'Tipo de operación no reconocido' });
+  } catch (err) {
+    return jsonResponse_({ ok: false, error: err.message });
   }
 }

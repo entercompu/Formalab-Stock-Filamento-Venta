@@ -1,32 +1,12 @@
-// ---------- Seguridad local de la administración ----------
-const ADMIN_KEY_STORAGE = 'formalab_filamento_admin_key';
-
-function getAdminKey(forceNew = false) {
-  if (forceNew) localStorage.removeItem(ADMIN_KEY_STORAGE);
-
-  let key = localStorage.getItem(ADMIN_KEY_STORAGE) || '';
-  if (!key) {
-    key = window.prompt('Ingresá la clave administrativa de FormaLab:') || '';
-    key = key.trim();
-    if (key) localStorage.setItem(ADMIN_KEY_STORAGE, key);
-  }
-  return key;
-}
-
-function clearAdminKey() {
-  localStorage.removeItem(ADMIN_KEY_STORAGE);
-  cargarDatos(true);
-}
-
 // ---------- Navegación entre vistas ----------
 const navBtns = document.querySelectorAll('.nav-btn');
 const views = document.querySelectorAll('.view');
 
 navBtns.forEach(btn => {
   btn.addEventListener('click', () => {
-    navBtns.forEach(button => button.classList.remove('active'));
+    navBtns.forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    views.forEach(view => view.classList.remove('active'));
+    views.forEach(v => v.classList.remove('active'));
     document.getElementById('view-' + btn.dataset.view).classList.add('active');
   });
 });
@@ -34,34 +14,22 @@ navBtns.forEach(btn => {
 const subtabBtns = document.querySelectorAll('.subtab-btn');
 subtabBtns.forEach(btn => {
   btn.addEventListener('click', () => {
-    subtabBtns.forEach(button => button.classList.remove('active'));
+    subtabBtns.forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById('ingresosTable').classList.toggle('hidden', btn.dataset.sub !== 'ingresos');
     document.getElementById('ventasTable').classList.toggle('hidden', btn.dataset.sub !== 'ventas');
   });
 });
 
-const changeKeyButton = document.getElementById('changeKeyBtn');
-if (changeKeyButton) changeKeyButton.addEventListener('click', clearAdminKey);
-
 // ---------- Estado de conexión ----------
 function setStatus(state, text) {
-  const element = document.getElementById('connStatus');
-  element.querySelector('.dot').className = 'dot ' + state;
-  element.querySelector('.status-text').textContent = text;
+  const el = document.getElementById('connStatus');
+  el.querySelector('.dot').className = 'dot ' + state;
+  el.lastChild.textContent = ' ' + text;
 }
 
-// ---------- Formato y seguridad visual ----------
-const fmtMoney = number => '$' + Math.round(Number(number) || 0).toLocaleString('es-AR');
-
-function escapeHtml(value) {
-  return String(value == null ? '' : value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
+// ---------- Formato ----------
+const fmtMoney = n => '$' + Math.round(Number(n) || 0).toLocaleString('es-AR');
 
 function estadoBadge(disponible) {
   if (disponible <= 0) return '<span class="badge out">SIN STOCK</span>';
@@ -69,46 +37,25 @@ function estadoBadge(disponible) {
   return '<span class="badge ok">OK</span>';
 }
 
-function setTodayOnDateInputs() {
-  const today = new Date();
-  document.querySelectorAll('input[type="date"]').forEach(input => {
-    if (!input.value) input.valueAsDate = today;
-  });
-}
-
 // ---------- Carga de datos ----------
-async function cargarDatos(forceNewKey = false) {
+async function cargarDatos() {
   if (!SCRIPT_URL || SCRIPT_URL.includes('PEGA_ACA')) {
     setStatus('err', 'Falta configurar js/config.js');
     return;
   }
-
-  const adminKey = getAdminKey(forceNewKey);
-  if (!adminKey) {
-    setStatus('err', 'Falta la clave administrativa');
-    return;
-  }
-
   try {
     setStatus('warn', 'Actualizando…');
-    const url = SCRIPT_URL + '?action=all&adminKey=' + encodeURIComponent(adminKey);
-    const response = await fetch(url, { cache: 'no-store' });
-    const data = await response.json();
+    const res = await fetch(SCRIPT_URL + '?action=all');
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'Error desconocido');
 
-    if (!data.ok) {
-      if ((data.error || '').toLowerCase().includes('no autorizado')) {
-        localStorage.removeItem(ADMIN_KEY_STORAGE);
-      }
-      throw new Error(data.error || 'Error desconocido');
-    }
-
-    renderStock(data.stock || []);
-    renderHistorial(data.ingresos || [], data.ventas || []);
-    renderPrecios(data.precios || []);
+    renderStock(data.stock);
+    renderHistorial(data.ingresos, data.ventas);
+    renderPrecios(data.precios);
     setStatus('ok', 'Conectado');
-  } catch (error) {
-    console.error(error);
-    setStatus('err', error.message || 'Sin conexión con la planilla');
+  } catch (err) {
+    console.error(err);
+    setStatus('err', 'Sin conexión con la planilla');
   }
 }
 
@@ -116,197 +63,157 @@ function renderStock(stock) {
   const tbody = document.querySelector('#stockTable tbody');
   tbody.innerHTML = '';
 
-  let totalDisponible = 0;
-  let sinStock = 0;
-  let stockBajo = 0;
+  let totalDisponible = 0, sinStock = 0, stockBajo = 0;
 
   stock.forEach(row => {
-    const disponible = Number(row.Disponible) || 0;
-    totalDisponible += disponible;
-    if (disponible <= 0) sinStock++;
-    else if (disponible <= 2) stockBajo++;
+    totalDisponible += row.Disponible;
+    if (row.Disponible <= 0) sinStock++;
+    else if (row.Disponible <= 2) stockBajo++;
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td>${escapeHtml(row.Marca)}</td>
-      <td>${escapeHtml(row.Tipo)}</td>
-      <td>${escapeHtml(row.Color)}</td>
-      <td class="num">${Number(row.Ingresado) || 0}</td>
-      <td class="num">${Number(row.Vendido) || 0}</td>
-      <td class="num">${disponible}</td>
-      <td>${estadoBadge(disponible)}</td>`;
+      <td>${row.Marca}</td><td>${row.Tipo}</td><td>${row.Color}</td>
+      <td class="num">${row.Ingresado}</td><td class="num">${row.Vendido}</td>
+      <td class="num">${row.Disponible}</td><td>${estadoBadge(row.Disponible)}</td>`;
     tbody.appendChild(tr);
   });
 
   document.getElementById('summaryCards').innerHTML = `
     <div class="summary-card"><div class="label">Rollos disponibles</div><div class="value">${totalDisponible}</div></div>
     <div class="summary-card"><div class="label">Colores sin stock</div><div class="value">${sinStock}</div></div>
-    <div class="summary-card"><div class="label">Colores con stock bajo</div><div class="value">${stockBajo}</div></div>`;
+    <div class="summary-card"><div class="label">Colores con stock bajo</div><div class="value">${stockBajo}</div></div>
+  `;
 }
 
 function renderHistorial(ingresos, ventas) {
-  const ingresoBody = document.querySelector('#ingresosTable tbody');
-  ingresoBody.innerHTML = ingresos.slice().reverse().map(row => `
+  const ingBody = document.querySelector('#ingresosTable tbody');
+  ingBody.innerHTML = ingresos.slice().reverse().map(r => `
     <tr>
-      <td>${escapeHtml(row.Fecha)}</td>
-      <td>${escapeHtml(row.Proveedor)}</td>
-      <td>${escapeHtml(row.NumeroRemito)}</td>
-      <td>${escapeHtml(row.Marca)}</td>
-      <td>${escapeHtml(row.Tipo)}</td>
-      <td>${escapeHtml(row.Color)}</td>
-      <td class="num">${Number(row.Cantidad) || 0}</td>
-      <td class="num">${fmtMoney(row.PrecioUnitario)}</td>
-      <td class="num">${fmtMoney(row.Total)}</td>
-      <td>${escapeHtml(row.Notas)}</td>
+      <td>${r.Fecha}</td><td>${r.Proveedor || ''}</td><td>${r.NumeroRemito || ''}</td>
+      <td>${r.Marca}</td><td>${r.Tipo}</td><td>${r.Color}</td>
+      <td class="num">${r.Cantidad}</td><td class="num">${fmtMoney(r.PrecioUnitario)}</td>
+      <td class="num">${fmtMoney(r.Total)}</td><td>${r.Notas || ''}</td>
     </tr>`).join('');
 
-  const ventaBody = document.querySelector('#ventasTable tbody');
-  ventaBody.innerHTML = ventas.slice().reverse().map(row => `
+  const ventBody = document.querySelector('#ventasTable tbody');
+  ventBody.innerHTML = ventas.slice().reverse().map(r => `
     <tr>
-      <td>${escapeHtml(row.Fecha)}</td>
-      <td>${escapeHtml(row.Marca)}</td>
-      <td>${escapeHtml(row.Tipo)}</td>
-      <td>${escapeHtml(row.Color)}</td>
-      <td class="num">${Number(row.Cantidad) || 0}</td>
-      <td class="num">${fmtMoney(row.PrecioUnitario)}</td>
-      <td class="num">${fmtMoney(row.Total)}</td>
-      <td>${escapeHtml(row.Cliente)}</td>
-      <td>${escapeHtml(row.Notas)}</td>
+      <td>${r.Fecha}</td><td>${r.Marca}</td><td>${r.Tipo}</td><td>${r.Color}</td>
+      <td class="num">${r.Cantidad}</td><td class="num">${fmtMoney(r.PrecioUnitario)}</td>
+      <td class="num">${fmtMoney(r.Total)}</td><td>${r.Cliente || ''}</td><td>${r.Notas || ''}</td>
     </tr>`).join('');
 }
 
 function renderPrecios(precios) {
   const tbody = document.querySelector('#preciosTable tbody');
   if (!tbody) return;
-
-  tbody.innerHTML = precios.slice().reverse().map(row => `
+  tbody.innerHTML = (precios || []).slice().reverse().map(r => `
     <tr>
-      <td>${escapeHtml(row.Marca)}</td>
-      <td>${escapeHtml(row.Tipo)}</td>
-      <td>${escapeHtml(row.Color)}</td>
-      <td class="num">${fmtMoney(row.Precio)}</td>
+      <td>${r.Marca}</td><td>${r.Tipo}</td><td>${r.Color}</td>
+      <td class="num">${fmtMoney(r.Precio)}</td>
     </tr>`).join('');
 }
 
-const publicLinkElement = document.getElementById('publicLinkText');
-if (publicLinkElement) {
-  publicLinkElement.textContent = new URL('public.html', window.location.href).href;
+// Link real al catálogo público (vive en la misma carpeta que index.html)
+const publicLinkEl = document.getElementById('publicLinkText');
+if (publicLinkEl) {
+  const base = window.location.href.replace(/index\.html?$/, '').replace(/\/$/, '') + '/';
+  publicLinkEl.textContent = base + 'public.html';
 }
 
 // ---------- Envío de formularios ----------
-async function enviarDatos(payload, button, feedbackElement) {
-  const adminKey = getAdminKey();
-  if (!adminKey) {
-    feedbackElement.textContent = 'Falta la clave administrativa.';
-    feedbackElement.className = 'form-feedback err';
-    return false;
-  }
-
-  button.disabled = true;
-  feedbackElement.textContent = 'Guardando…';
-  feedbackElement.className = 'form-feedback';
-
+async function enviarDatos(payload, btn, feedbackEl) {
+  btn.disabled = true;
+  feedbackEl.textContent = 'Guardando…';
+  feedbackEl.className = 'form-feedback';
   try {
-    const response = await fetch(SCRIPT_URL, {
+    await fetch(SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ ...payload, adminKey })
+      body: JSON.stringify(payload)
     });
-    const data = await response.json();
-
-    if (!data.ok) {
-      if ((data.error || '').toLowerCase().includes('no autorizado')) {
-        localStorage.removeItem(ADMIN_KEY_STORAGE);
-      }
-      throw new Error(data.error || 'No se pudo guardar.');
-    }
-
-    feedbackElement.textContent = data.message || 'Guardado correctamente.';
-    feedbackElement.className = 'form-feedback ok';
+    feedbackEl.textContent = 'Guardado correctamente.';
+    feedbackEl.className = 'form-feedback ok';
     return true;
-  } catch (error) {
-    console.error(error);
-    feedbackElement.textContent = error.message || 'No se pudo guardar.';
-    feedbackElement.className = 'form-feedback err';
+  } catch (err) {
+    console.error(err);
+    feedbackEl.textContent = 'No se pudo guardar. Revisá tu conexión o la URL en config.js.';
+    feedbackEl.className = 'form-feedback err';
     return false;
   } finally {
-    button.disabled = false;
+    btn.disabled = false;
   }
 }
 
-document.getElementById('formIngreso').addEventListener('submit', async event => {
-  event.preventDefault();
-  const form = event.target;
-  const formData = new FormData(form);
-  const button = form.querySelector('button[type="submit"]');
+document.getElementById('formIngreso').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  const fd = new FormData(form);
+  const btn = form.querySelector('button');
   const feedback = document.getElementById('feedbackIngreso');
 
   const payload = {
     tipo: 'ingreso',
-    fecha: formData.get('fecha'),
-    proveedor: formData.get('proveedor'),
-    numeroRemito: formData.get('numeroRemito'),
-    marca: formData.get('marca'),
-    tipo2: formData.get('tipo2'),
-    color: formData.get('color'),
-    cantidad: formData.get('cantidad'),
-    precioUnitario: formData.get('precioUnitario') || 0,
-    notas: formData.get('notas')
+    fecha: fd.get('fecha'),
+    proveedor: fd.get('proveedor'),
+    numeroRemito: fd.get('numeroRemito'),
+    marca: fd.get('marca'),
+    tipo2: fd.get('tipo2'),
+    color: fd.get('color'),
+    cantidad: fd.get('cantidad'),
+    precioUnitario: fd.get('precioUnitario') || 0,
+    notas: fd.get('notas')
   };
 
-  if (await enviarDatos(payload, button, feedback)) {
-    form.reset();
-    setTodayOnDateInputs();
-    await cargarDatos();
-  }
+  const ok = await enviarDatos(payload, btn, feedback);
+  if (ok) { form.reset(); setTimeout(cargarDatos, 600); }
 });
 
-document.getElementById('formVenta').addEventListener('submit', async event => {
-  event.preventDefault();
-  const form = event.target;
-  const formData = new FormData(form);
-  const button = form.querySelector('button[type="submit"]');
+document.getElementById('formVenta').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  const fd = new FormData(form);
+  const btn = form.querySelector('button');
   const feedback = document.getElementById('feedbackVenta');
 
   const payload = {
     tipo: 'venta',
-    fecha: formData.get('fecha'),
-    marca: formData.get('marca'),
-    tipo2: formData.get('tipo2'),
-    color: formData.get('color'),
-    cantidad: formData.get('cantidad'),
-    precioUnitario: formData.get('precioUnitario'),
-    cliente: formData.get('cliente'),
-    notas: formData.get('notas')
+    fecha: fd.get('fecha'),
+    marca: fd.get('marca'),
+    tipo2: fd.get('tipo2'),
+    color: fd.get('color'),
+    cantidad: fd.get('cantidad'),
+    precioUnitario: fd.get('precioUnitario'),
+    cliente: fd.get('cliente'),
+    notas: fd.get('notas')
   };
 
-  if (await enviarDatos(payload, button, feedback)) {
-    form.reset();
-    form.precioUnitario.value = 24000;
-    setTodayOnDateInputs();
-    await cargarDatos();
-  }
+  const ok = await enviarDatos(payload, btn, feedback);
+  if (ok) { form.reset(); form.precioUnitario.value = 24000; setTimeout(cargarDatos, 600); }
 });
 
-document.getElementById('formPrecio').addEventListener('submit', async event => {
-  event.preventDefault();
-  const form = event.target;
-  const formData = new FormData(form);
-  const button = form.querySelector('button[type="submit"]');
+document.getElementById('formPrecio').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  const fd = new FormData(form);
+  const btn = form.querySelector('button');
   const feedback = document.getElementById('feedbackPrecio');
 
   const payload = {
     tipo: 'precio',
-    marca: formData.get('marca'),
-    tipo2: formData.get('tipo2'),
-    color: formData.get('color'),
-    precio: formData.get('precio')
+    marca: fd.get('marca'),
+    tipo2: fd.get('tipo2'),
+    color: fd.get('color'),
+    precio: fd.get('precio')
   };
 
-  if (await enviarDatos(payload, button, feedback)) {
-    await cargarDatos();
-  }
+  const ok = await enviarDatos(payload, btn, feedback);
+  if (ok) { setTimeout(cargarDatos, 600); }
 });
 
-setTodayOnDateInputs();
+// Fecha de hoy por defecto en ambos formularios
+document.querySelectorAll('input[type="date"]').forEach(inp => {
+  inp.valueAsDate = new Date();
+});
+
 cargarDatos();
