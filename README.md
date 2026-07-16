@@ -46,6 +46,24 @@ No hace falta pagar hosting ni base de datos: todo corre gratis con Google Apps 
    `https://TU_USUARIO.github.io/TU_REPO/`
 4. Esa es la dirección de tu app — funciona desde el celu, la notebook, donde sea.
 
+## Pedidos por WhatsApp desde el catálogo
+
+En `public.html`, tus clientes ahora pueden:
+1. Sumar cantidades de cada color con los botones **+ / −** (respeta el stock disponible, no los deja pedir más de lo que hay).
+2. Ver un resumen flotante abajo con el total de productos y el precio estimado.
+3. Tocar **"Ver pedido"**, poner su nombre y notas opcionales, y **"Enviar pedido por WhatsApp"** — se abre WhatsApp con un mensaje ya redactado con el detalle del pedido, listo para enviarte.
+
+**Para activarlo**, en `js/config.js` reemplazá:
+```js
+const WHATSAPP_NUMBER = "PEGA_TU_NUMERO_DE_WHATSAPP";
+```
+por tu número con código de país, sin espacios ni el signo `+`. Ejemplo para Argentina:
+```js
+const WHATSAPP_NUMBER = "5492966123456";
+```
+
+El pedido no se guarda solo ni descuenta stock automáticamente — llega como mensaje de WhatsApp para que vos lo confirmes y después cargues la venta real en el panel de administración (`Nueva venta`), así el stock queda siempre exacto.
+
 ## Tu logo
 
 La app busca tu logo en `img/logo.png`. Para ponerlo:

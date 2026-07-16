@@ -33,6 +33,43 @@
   FormaLab 3D — para consultas o pedidos, contactanos directamente.
 </footer>
 
+<!-- Barra flotante del carrito -->
+<div class="cart-bar hidden" id="cartBar">
+  <div class="cart-bar-info">
+    <span id="cartCount">0 productos</span>
+    <strong id="cartTotal">$0</strong>
+  </div>
+  <button class="btn-primary" id="openCartBtn">Ver pedido</button>
+</div>
+
+<!-- Modal del carrito -->
+<div class="cart-modal hidden" id="cartModal">
+  <div class="cart-modal-card">
+    <div class="cart-modal-header">
+      <h2>Tu pedido</h2>
+      <button class="cart-close" id="closeCartBtn">✕</button>
+    </div>
+
+    <div class="cart-items" id="cartItems"></div>
+
+    <div class="cart-total-row">
+      <span>Total estimado</span>
+      <strong id="cartModalTotal">$0</strong>
+    </div>
+
+    <form id="cartForm">
+      <label>Tu nombre
+        <input type="text" name="nombre" required>
+      </label>
+      <label>Notas (opcional)
+        <textarea name="notas" rows="2" placeholder="Ej: retiro en persona, horario, etc."></textarea>
+      </label>
+      <button type="submit" class="btn-whatsapp">Enviar pedido por WhatsApp</button>
+    </form>
+    <p class="cart-note">Este mensaje se abre en tu WhatsApp para que lo confirmes y envíes vos mismo. El pedido queda sujeto a confirmación de stock y precio final.</p>
+  </div>
+</div>
+
 <script src="js/config.js"></script>
 <script src="js/public.js"></script>
 </body>
